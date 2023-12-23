@@ -1,0 +1,54 @@
+name: Weekly Release
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # At 08:00 on Monday
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.21'  # Set this to your Go version
+
+    - name: Run make all
+      run: make all
+
+    - name: Get current date
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+    - name: Create and Push Tag
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          TAG_NAME=${{ steps.date.outputs.date }}
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+    - name: Upload to Releases
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.date.outputs.date }}
+        body: ${{ steps.date.outputs.date }}
+        files: |
+            public/ip_location.wasm
+            public/wasm_exec.js
+
+    - name: Remove old Releases
+      uses: dev-drprasad/delete-older-releases@v0.2.0
+      with:
+        keep_latest: 2
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

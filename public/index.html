@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>IP Lookup with WebAssembly</title>
+    <script src="wasm_exec.js"></script>
+  </head>
+  <body>
+    <h1>IP Lookup</h1>
+    <input type="text" id="ipInput" placeholder="Enter IP address" />
+    <button onclick="lookupIP()">Lookup IP</button>
+    <pre id="result"></pre>
+
+    <script>
+      const go = new Go();
+      let wasmModule = null;
+
+      WebAssembly.instantiateStreaming(
+        fetch("ip_location.wasm"),
+        go.importObject
+      ).then((result) => {
+        wasmModule = result.module;
+        go.run(result.instance);
+      });
+
+      async function lookupIP() {
+        const ip = document.getElementById("ipInput").value;
+
+        const goLookupIPFunc = window.getIPLocation;
+
+        try {
+          const result = await goLookupIPFunc(ip);
+          if (result instanceof Uint8Array) {
+            const str = new TextDecoder("utf-8").decode(result);
+            document.getElementById("result").innerText = str;
+          } else {
+            document.getElementById("result").innerText = result;
+          }
+        } catch (error) {
+          console.error("Error in lookupIP:", error);
+          document.getElementById("result").innerText = `Error: ${error}`;
+        }
+      }
+    </script>
+  </body>
+</html>
